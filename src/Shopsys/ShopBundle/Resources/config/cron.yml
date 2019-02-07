@@ -1,0 +1,7 @@
+services:
+  _defaults:
+    autowire: true
+
+  Shopsys\ShopBundle\Model\Product\ImportProductsCronModule:
+    tags:
+      - { name: shopsys.cron, hours: '*', minutes: '*' }
