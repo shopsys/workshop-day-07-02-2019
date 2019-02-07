@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Shopsys\ShopBundle\Model\Product\LastVisitedProduct;
 
+use Shopsys\ShopBundle\Model\Product\ProductOnCurrentDomainFacade;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,11 +17,20 @@ class LastVisitedProductFacade
     private $requestStack;
 
     /**
-     * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
+     * @var \Shopsys\ShopBundle\Model\Product\ProductOnCurrentDomainFacade
      */
-    public function __construct(RequestStack $requestStack)
-    {
+    private $productOnCurrentDomainFacade;
+
+    /**
+     * @param \Symfony\Component\HttpFoundation\RequestStack $requestStack
+     * @param \Shopsys\ShopBundle\Model\Product\ProductOnCurrentDomainFacade $productOnCurrentDomainFacade
+     */
+    public function __construct(
+        RequestStack $requestStack,
+        ProductOnCurrentDomainFacade $productOnCurrentDomainFacade
+    ) {
         $this->requestStack = $requestStack;
+        $this->productOnCurrentDomainFacade = $productOnCurrentDomainFacade;
     }
 
     /**
@@ -29,17 +39,7 @@ class LastVisitedProductFacade
      */
     public function updateLastVisitedProducts(int $productId, Response $response): void
     {
-        $lastVisitedProductsIdsString = $this->requestStack->getMasterRequest()->cookies->get(
-            'lastVisitedProducts',
-            ''
-        );
-
-        if ($lastVisitedProductsIdsString !== '') {
-            $lastVisitedProductsIds = explode(',', $lastVisitedProductsIdsString);
-            $lastVisitedProductsIds = array_map('intval', $lastVisitedProductsIds);
-        } else {
-            $lastVisitedProductsIds = [];
-        }
+        $lastVisitedProductsIds = $this->getLastVisitedProductsIdsFromCookie();
 
         $indexOfProductIdIfAlreadyVisited = array_search($productId, $lastVisitedProductsIds, true);
         if ($indexOfProductIdIfAlreadyVisited !== false) {
@@ -54,5 +54,34 @@ class LastVisitedProductFacade
         );
 
         $response->headers->setCookie($cookie);
+    }
+
+    /**
+     * @return array|\Shopsys\ShopBundle\Model\Product\Product[]
+     */
+    public function getLastVisitedProducts()
+    {
+        $lastVisitedProductsIds = $this->getLastVisitedProductsIdsFromCookie();
+        return $this->productOnCurrentDomainFacade->getVisibleProductsByIds($lastVisitedProductsIds);
+    }
+
+    /**
+     * @return array
+     */
+    private function getLastVisitedProductsIdsFromCookie(): array
+    {
+        $lastVisitedProductsIdsString = $this->requestStack->getMasterRequest()->cookies->get(
+            'lastVisitedProducts',
+            ''
+        );
+
+        if ($lastVisitedProductsIdsString !== '') {
+            $lastVisitedProductsIds = explode(',', $lastVisitedProductsIdsString);
+            $lastVisitedProductsIds = array_map('intval', $lastVisitedProductsIds);
+        } else {
+            $lastVisitedProductsIds = [];
+        }
+
+        return $lastVisitedProductsIds;
     }
 }
